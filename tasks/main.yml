@@ -1,0 +1,18 @@
+---
+- name: Manage Credentials
+  include_tasks: credentials.yml
+  loop: "{{ jenkins_jobs_credentials }}"
+  loop_control:
+    loop_var: credentials
+
+- name: Manage job
+  community.general.jenkins_job:
+    url: "{{ jenkins_jobs_server_url }}"
+    user: "{{ jenkins_jobs_server_user }}"
+    password: "{{ jenkins_jobs_server_password }}"
+    name: "{{ jenkins_job.name }}"
+    state: "{{ jenkins_job.state|default('present') }}"
+    config: "{{ lookup('template', 'templates/' ~ jenkins_job.type|default('job') ~ '.xml.j2') }}"
+  loop: "{{ jenkins_jobs_list }}"
+  loop_control:
+    loop_var: jenkins_job

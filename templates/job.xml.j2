@@ -1,0 +1,115 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+    <actions/>
+    <description>{{ jenkins_job.description | default('') }}</description>
+    <keepDependencies>false</keepDependencies>
+    <properties>
+{% if jenkins_job.parameters is defined %}
+        <hudson.model.ParametersDefinitionProperty>
+            <parameterDefinitions>
+{% for parameter in jenkins_job.parameters | default([]) %}
+{% if parameter.type == 'choice' %}
+                <hudson.model.ChoiceParameterDefinition>
+                    <name>{{ parameter.name }}</name>
+                    <choices class="java.util.Arrays$ArrayList">
+                        <a class="string-array">
+{% for choice in parameter.choices %}
+                            <string>{{ choice }}</string>
+{% endfor %}
+                        </a>
+                    </choices>
+                    <description>{{ parameter.description | default('') }}</description>
+                </hudson.model.ChoiceParameterDefinition>
+{% elif parameter.type == 'bool' %}
+                <hudson.model.BooleanParameterDefinition>
+                  <name>{{ parameter.name }}</name>
+                  <defaultValue>{{ 'true' if parameter.default | default(false) else 'false' }}</defaultValue>
+                  <description>{{ parameter.description | default('') }}</description>
+                </hudson.model.BooleanParameterDefinition>
+{% elif parameter.type == 'text' %}
+                <hudson.model.StringParameterDefinition>
+                    <name>{{ parameter.name }}</name>
+                    <trim>true</trim>
+                    <defaultValue>{{ parameter.default | default('') }}</defaultValue>
+                    <description>{{ parameter.description | default('') }}</description>
+                </hudson.model.StringParameterDefinition>
+{% endif %}
+{% endfor %}
+            </parameterDefinitions>
+        </hudson.model.ParametersDefinitionProperty>
+{% endif %}
+    </properties>
+    <triggers>
+{% if jenkins_job.schedule is defined %}
+        <hudson.triggers.TimerTrigger>
+          <spec>{{ jenkins_job.schedule }}</spec>
+        </hudson.triggers.TimerTrigger>
+{% endif %}
+    </triggers>
+    <disabled>{{ 'true' if job.disabled | default(false) else 'false' }}</disabled>
+{% if jenkins_job.scm is defined %}
+    <scm class="hudson.plugins.git.GitSCM" plugin="git@5.7.0">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+            <hudson.plugins.git.UserRemoteConfig>
+                <url>{{ jenkins_job.scm.url }}</url>
+                <credentialsId>{{ jenkins_job.scm.credentials_id }}</credentialsId>
+            </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches>
+          <hudson.plugins.git.BranchSpec>
+              <name>{{ jenkins_job.scm.ref_spec | default('*/main') }}</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <submoduleCfg class="empty-list"/>
+        <extensions/>
+    </scm>
+{% endif %}
+{% if jenkins_job.build_wrappers is defined %}
+    <buildWrappers>
+{% for build_wrapper in jenkins_job.build_wrappers %}
+{% if build_wrapper.type == 'ssh-agent' %}
+        <com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper plugin="ssh-agent@376.v8933585c69d3">
+            <credentialIds>
+                <string>{{ build_wrapper.credentials_id }}</string>
+            </credentialIds>
+            <ignoreMissing>false</ignoreMissing>
+        </com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper>
+{% elif build_wrapper.type == 'secret' %}
+        <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@687.v619cb_15e923f">
+          <bindings>
+{% if build_wrapper.ssh_key_file_var is defined %}
+            <org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
+              <credentialsId>{{ build_wrapper.credentials_id }}</credentialsId>
+              <keyFileVariable>{{ build_wrapper.ssh_key_file_var }}</keyFileVariable>
+              <usernameVariable>{{ build_wrapper.username_var | default('') }}</usernameVariable>
+              <passphraseVariable>{{ build_wrapper.password_var | default('') }}</passphraseVariable>
+            </org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
+{% elif build_wrapper.password_var is defined %}
+            <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+              <credentialsId>{{ build_wrapper.credentials_id }}</credentialsId>
+              <usernameVariable>{{ build_wrapper.username_var | default('') }}</usernameVariable>
+              <passwordVariable>{{ build_wrapper.password_var }}</passwordVariable>
+            </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+{% endif %}
+          </bindings>
+        </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+{% endif %}
+{% endfor %}
+    </buildWrappers>
+{% endif %}
+    <builders>
+{% for builder in jenkins_job.builders %}
+{% if builder.type == 'shell' %}
+        <hudson.tasks.Shell>
+            <command><![CDATA[{{ builder.command }}]]></command>
+            <configuredLocalRules/>
+        </hudson.tasks.Shell>
+{% endif %}
+{% endfor %}
+    </builders>
+    <publishers />
+    <canRoam>true</canRoam>
+    {{ jenkins_job.extra_xml | default('') }}
+</project>

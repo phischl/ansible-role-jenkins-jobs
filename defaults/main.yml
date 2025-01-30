@@ -1,0 +1,6 @@
+---
+jenkins_jobs_server_url: http://localhost:8080
+jenkins_jobs_server_user: ''
+jenkins_jobs_server_password: ''
+jenkins_jobs_credentials: []
+jenkins_jobs_list: []
