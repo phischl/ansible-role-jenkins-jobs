@@ -66,37 +66,42 @@
         <extensions/>
     </scm>
 {% endif %}
+
 {% if jenkins_job.build_wrappers is defined %}
     <buildWrappers>
-{% for build_wrapper in jenkins_job.build_wrappers %}
-{% if build_wrapper.type == 'ssh-agent' %}
+{% if jenkins_job.build_wrappers | selectattr('type', 'equalto', 'secret') | list | length > 0 %}
+        <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@687.v619cb_15e923f">
+            <bindings>
+{% for secret in jenkins_job.build_wrappers | selectattr('type', 'equalto', 'secret') | list %}
+{% if secret.ssh_key_file_var is defined %}
+                <org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
+                  <credentialsId>{{ secret.credentials_id }}</credentialsId>
+                  <keyFileVariable>{{ secret.ssh_key_file_var }}</keyFileVariable>
+                  <usernameVariable>{{ secret.username_var | default('') }}</usernameVariable>
+                  <passphraseVariable>{{ secret.password_var | default('') }}</passphraseVariable>
+                </org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
+{% elif secret.password_var is defined %}
+                <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+                  <credentialsId>{{ secret.credentials_id }}</credentialsId>
+                  <usernameVariable>{{ secret.username_var | default('') }}</usernameVariable>
+                  <passwordVariable>{{ secret.password_var }}</passwordVariable>
+                </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+{% endif %}
+{% endfor %}
+            </bindings>
+        </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+{% endif %}
+
+{% if jenkins_job.build_wrappers | selectattr('type', 'equalto', 'ssh-agent') | list | length > 0 %}
         <com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper plugin="ssh-agent@376.v8933585c69d3">
             <credentialIds>
-                <string>{{ build_wrapper.credentials_id }}</string>
+{% for secret in jenkins_job.build_wrappers | selectattr('type', 'equalto', 'ssh-agent') | list %}
+                <string>{{ secret.credentials_id }}</string>
+{% endfor %}
             </credentialIds>
             <ignoreMissing>false</ignoreMissing>
         </com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper>
-{% elif build_wrapper.type == 'secret' %}
-        <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@687.v619cb_15e923f">
-          <bindings>
-{% if build_wrapper.ssh_key_file_var is defined %}
-            <org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
-              <credentialsId>{{ build_wrapper.credentials_id }}</credentialsId>
-              <keyFileVariable>{{ build_wrapper.ssh_key_file_var }}</keyFileVariable>
-              <usernameVariable>{{ build_wrapper.username_var | default('') }}</usernameVariable>
-              <passphraseVariable>{{ build_wrapper.password_var | default('') }}</passphraseVariable>
-            </org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
-{% elif build_wrapper.password_var is defined %}
-            <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
-              <credentialsId>{{ build_wrapper.credentials_id }}</credentialsId>
-              <usernameVariable>{{ build_wrapper.username_var | default('') }}</usernameVariable>
-              <passwordVariable>{{ build_wrapper.password_var }}</passwordVariable>
-            </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
 {% endif %}
-          </bindings>
-        </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
-{% endif %}
-{% endfor %}
     </buildWrappers>
 {% endif %}
     <builders>
@@ -106,6 +111,43 @@
             <command><![CDATA[{{ builder.command }}]]></command>
             <configuredLocalRules/>
         </hudson.tasks.Shell>
+{% elif builder.type == 'trigger-build' %}
+        <hudson.plugins.parameterizedtrigger.TriggerBuilder plugin="parameterized-trigger@840.v3c7d4a_a_5e6c7">
+          <configs>
+            <hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+              <configs>
+{% if builder.use_job_parameters | default(false) %}
+                <hudson.plugins.parameterizedtrigger.CurrentBuildParameters />
+{% endif %}
+              </configs>
+              <projects>{{ builder.job_name }}</projects>
+              <condition>ALWAYS</condition>
+              <triggerWithNoParameters>false</triggerWithNoParameters>
+              <triggerFromChildProjects>false</triggerFromChildProjects>
+              <block>
+                <buildStepFailureThreshold>
+                  <name>FAILURE</name>
+                  <ordinal>2</ordinal>
+                  <color>RED</color>
+                  <completeBuild>true</completeBuild>
+                </buildStepFailureThreshold>
+                <unstableThreshold>
+                  <name>UNSTABLE</name>
+                  <ordinal>1</ordinal>
+                  <color>YELLOW</color>
+                  <completeBuild>true</completeBuild>
+                </unstableThreshold>
+                <failureThreshold>
+                  <name>FAILURE</name>
+                  <ordinal>2</ordinal>
+                  <color>RED</color>
+                  <completeBuild>true</completeBuild>
+                </failureThreshold>
+              </block>
+              <buildAllNodesWithLabel>false</buildAllNodesWithLabel>
+            </hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+          </configs>
+        </hudson.plugins.parameterizedtrigger.TriggerBuilder>
 {% endif %}
 {% endfor %}
     </builders>
