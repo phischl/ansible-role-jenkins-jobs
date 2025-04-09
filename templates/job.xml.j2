@@ -91,7 +91,11 @@
             </bindings>
         </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
 {% endif %}
-
+{% if jenkins_job.output_colored | default(false) %}
+        <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@1.0.6">
+            <colorMapName>xterm</colorMapName>
+        </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+{% endif %}
 {% if jenkins_job.build_wrappers | selectattr('type', 'equalto', 'ssh-agent') | list | length > 0 %}
         <com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper plugin="ssh-agent@376.v8933585c69d3">
             <credentialIds>

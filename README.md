@@ -56,7 +56,8 @@ Else it will be created as `UsernamePasswordMultiBinding`.
 | build_wrappers | List of build wrappers (see variable `jenkins_jobs_list.build_wrappers`)     | []      | no       |
 | parameters     | List of parameters for the job (see variable `jenkins_jobs_list.parameters`) | []      | no       |
 | builders       | List of builders for the job (see variable `jenkins_jobs_list.builders`)     | []      | no       |
-| schedule        | Schdule job execution in cron format | /       | no       |
+| schedule       | Schdule job execution in cron format                                         | /       | no       |
+| output_colored | Enable colored output for the job (requires ansicolor plugin)                | false   | no       |
 
 **Example**
 ```yaml
