@@ -1,9 +1,20 @@
 ---
+- name: Install dependencies
+  block:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 86400
+    - name: Install python3-jenkins
+      ansible.builtin.package:
+        name: "python3-jenkins"
+
 - name: Manage Credentials
   include_tasks: credentials.yml
   loop: "{{ jenkins_jobs_credentials }}"
   loop_control:
     loop_var: credentials
+  no_log: true
 
 - name: Manage job
   community.general.jenkins_job:

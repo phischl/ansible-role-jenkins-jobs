@@ -4,7 +4,7 @@ This is a role to manage jenkins jobs
 
 ## Requirements
 
-* Package python3-jenkins
+* Debian/Ubuntu
 
 ## Vars
 
